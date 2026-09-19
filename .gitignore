@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+runs.jsonl
+session.json
+prompts/*
+!prompts/bot_v1.txt
+!prompts/bot_v2.txt
+!prompts/bot_v2.changes.json

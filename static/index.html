@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KarmaGuard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f3f6f4; --surface: #ffffff; --surface-2: #f0f4f2; --surface-3: #e6ece9; --border: #dfe7e3;
+  --text: #102019; --muted: #5f6f67; --faint: #8a9892;
+  --primary: #0f7a4a; --primary-soft: #e2f3ea; --primary-deep: #073d25;
+  --pass: #13894e; --pass-soft: #e0f4e9; --fail: #d13737; --fail-soft: #fde9e9;
+  --warn: #b86e00; --warn-soft: #fff1d9;
+  --hacker: #e0662b; --bot: #1f7fbf; --judge: #7b4fd6; --fixer: #0f9a5c;
+  --shadow: 0 1px 2px rgba(16, 32, 25, .05), 0 4px 16px rgba(16, 32, 25, .05);
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0a100d; --surface: #111a16; --surface-2: #16211c; --surface-3: #1d2a24; --border: #22312a;
+    --text: #e7f0eb; --muted: #97a8a0; --faint: #6d7d76;
+    --primary: #3dcc85; --primary-soft: #133324; --primary-deep: #06291a;
+    --pass: #4fd48f; --pass-soft: #11301f; --fail: #ff6b6b; --fail-soft: #361616;
+    --warn: #ffb547; --warn-soft: #36280c;
+    --hacker: #ff8a4f; --bot: #56b3f0; --judge: #a88bff; --fixer: #3dcc85;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  }
+}
+:root[data-theme="dark"] {
+    --bg: #0a100d; --surface: #111a16; --surface-2: #16211c; --surface-3: #1d2a24; --border: #22312a;
+    --text: #e7f0eb; --muted: #97a8a0; --faint: #6d7d76;
+    --primary: #3dcc85; --primary-soft: #133324; --primary-deep: #06291a;
+    --pass: #4fd48f; --pass-soft: #11301f; --fail: #ff6b6b; --fail-soft: #361616;
+    --warn: #ffb547; --warn-soft: #36280c;
+    --hacker: #ff8a4f; --bot: #56b3f0; --judge: #a88bff; --fixer: #3dcc85;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3);
+}
+body.replay .live-only, body:not(.replay) .replay-only { display: none !important; }
+.replay-note { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--judge) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--judge) 30%, transparent); font-size: 13px; }
+.replay-note b { color: var(--judge); }
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.45; }
+svg.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+button { font: inherit; cursor: pointer; }
+
+.topbar { background: linear-gradient(120deg, var(--primary-deep), #0c5a37 60%, #10774a); color: #fff; }
+.topbar-inner { max-width: 1320px; margin: 0 auto; padding: 18px 20px 72px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.logo { width: 44px; height: 44px; border-radius: 12px; background: rgba(255, 255, 255, .14); display: grid; place-items: center; }
+.logo svg.i { width: 24px; height: 24px; }
+.brand h1 { margin: 0; font-size: 21px; font-weight: 800; letter-spacing: -.01em; }
+.brand p { margin: 2px 0 0; font-size: 13px; opacity: .8; }
+.topbar .spacer { flex: 1; }
+.pill-live { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, .12); font-size: 12px; font-weight: 600; }
+.pill-live .dot { width: 8px; height: 8px; border-radius: 50%; background: #7dffb5; box-shadow: 0 0 0 0 rgba(125, 255, 181, .6); }
+.pill-live.busy .dot { background: #ffd166; animation: pulse 1.4s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 209, 102, .6); } 70% { box-shadow: 0 0 0 8px rgba(255, 209, 102, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 209, 102, 0); } }
+
+main { max-width: 1320px; margin: -56px auto 0; padding: 0 20px 60px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (max-width: 700px) { main { padding: 0 16px 40px; } .topbar-inner { padding: 16px 16px 72px; } .bar-row { grid-template-columns: 110px 1fr 50px; } .card { padding: 14px; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); min-width: 0; }
+.card-title { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 15px; font-weight: 700; }
+.card-title .hint { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); }
+
+.control-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.field { display: grid; gap: 4px; }
+.field span { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+select { font: inherit; font-weight: 600; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); min-width: 120px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 600; transition: transform .08s, background .15s, opacity .15s; }
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: var(--primary); filter: brightness(1.08); }
+.btn.auto { background: linear-gradient(135deg, #5b3fd0, #2f6fd8); border-color: transparent; color: #fff; }
+.btn.auto:hover:not(:disabled) { background: linear-gradient(135deg, #5b3fd0, #2f6fd8); filter: brightness(1.1); }
+.btn.ghost { background: transparent; }
+.btn svg.i { width: 16px; height: 16px; }
+.control-row .spacer { flex: 1; }
+
+.pipeline { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; align-items: center; gap: 8px; margin-top: 18px; }
+.stage { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); transition: border-color .2s, background .2s; min-width: 0; }
+.stage .ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; color: #fff; background: var(--c); flex-shrink: 0; opacity: .55; transition: opacity .2s; }
+.stage .name { font-weight: 700; font-size: 13px; }
+.stage .sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage > div:last-child { min-width: 0; }
+.stage.active { border-color: var(--c); background: color-mix(in srgb, var(--c) 10%, var(--surface)); }
+.stage.active .ic { opacity: 1; animation: glow 1.4s infinite; }
+.stage.done .ic { opacity: 1; }
+.stage.warn { border-color: var(--fail); }
+.stage.warn .sub { color: var(--fail); font-weight: 600; }
+@keyframes glow { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 50%, transparent); } 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--c) 0%, transparent); } }
+.pipe-arrow { color: var(--faint); }
+@media (max-width: 900px) { .pipeline { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pipe-arrow { display: none; } }
+
+.statusline { display: flex; align-items: center; gap: 10px; margin-top: 14px; color: var(--muted); font-size: 13px; }
+.progress { flex: 1; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; max-width: 320px; }
+.progress > div { height: 100%; width: 0; background: var(--primary); transition: width .3s; }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--surface-3); border-top-color: var(--primary); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.alert { display: none; align-items: center; gap: 12px; border-radius: var(--radius); padding: 14px 18px; font-weight: 600; }
+.alert.bad { display: flex; background: var(--fail-soft); color: var(--fail); border: 1px solid color-mix(in srgb, var(--fail) 40%, transparent); }
+.alert.good { display: flex; background: var(--pass-soft); color: var(--pass); border: 1px solid color-mix(in srgb, var(--pass) 40%, transparent); }
+.alert svg.i { width: 22px; height: 22px; }
+
+.kpis { display: grid; grid-template-columns: 1.3fr repeat(4, 1fr); gap: 16px; }
+@media (max-width: 1000px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpi.hero { grid-column: span 2; } }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.kpi .label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.kpi .label svg.i { width: 15px; height: 15px; }
+.kpi .value { font-size: 28px; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.kpi .sub { color: var(--muted); font-size: 12px; }
+.kpi.hero { flex-direction: row; align-items: center; gap: 16px; }
+.ring { position: relative; width: 92px; height: 92px; flex-shrink: 0; }
+.ring svg { width: 92px; height: 92px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 9; }
+.ring .track { stroke: var(--surface-3); }
+.ring .val { stroke: var(--primary); stroke-linecap: round; transition: stroke-dashoffset .5s, stroke .3s; }
+.ring .txt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid-results { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1000px) { .grid2, .grid-results { grid-template-columns: minmax(0, 1fr); } }
+
+.bar-row { display: grid; grid-template-columns: 170px 1fr 54px; gap: 10px; align-items: center; margin-bottom: 10px; font-size: 13px; }
+.bar-row .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar { height: 10px; background: var(--surface-3); border-radius: 5px; overflow: hidden; display: flex; }
+.bar .p { background: var(--pass); } .bar .f { background: var(--fail); }
+.bar-row .c { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.bar-row .c.bad { color: var(--fail); font-weight: 700; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+.compare { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; }
+.cmp-box { border-radius: 12px; padding: 16px; background: var(--surface-2); text-align: center; }
+.cmp-box .v { font-size: 12px; color: var(--muted); font-weight: 600; }
+.cmp-box .big { font-size: 40px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.cmp-box .s { font-size: 12px; color: var(--muted); }
+.delta { margin-top: 14px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; border-radius: 10px; font-weight: 700; }
+.delta.up { background: var(--pass-soft); color: var(--pass); }
+.delta.down { background: var(--fail-soft); color: var(--fail); }
+
+.tabs { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; gap: 2px; margin-left: auto; }
+.tabs button { border: 0; background: transparent; color: var(--muted); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+.tabs button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+.results { display: grid; gap: 8px; }
+.result { border: 1px solid var(--border); border-left: 4px solid var(--faint); border-radius: 12px; background: var(--surface); overflow: hidden; }
+.result.pass { border-left-color: var(--pass); }
+.result.fail { border-left-color: var(--fail); }
+.result.wait { border-left-color: var(--faint); }
+.r-head { width: 100%; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto auto 18px; align-items: center; gap: 10px; padding: 12px 14px; border: 0; background: transparent; color: inherit; text-align: left; }
+.r-head:hover { background: var(--surface-2); }
+.r-id { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+.r-main { min-width: 0; }
+.r-tags { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
+.r-q { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.r-why { font-size: 12px; color: var(--fail); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-head .chev { color: var(--faint); transition: transform .2s; }
+.result.open .chev { transform: rotate(180deg); }
+.r-body { display: none; padding: 4px 14px 16px 62px; gap: 10px; }
+.result.open .r-body { display: grid; }
+@media (max-width: 700px) { .r-body { padding-left: 14px; } .r-head { grid-template-columns: minmax(0, 1fr) auto 18px; } .r-id, .dots { display: none; } }
+.chip { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--surface-3); color: var(--muted); white-space: nowrap; }
+.sev { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 999px; background: var(--surface-3); color: var(--muted); }
+.sev-critical { background: var(--fail); color: #fff; }
+.sev-high { background: var(--fail-soft); color: var(--fail); }
+.sev-medium { background: var(--warn-soft); color: var(--warn); }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.badge svg.i { width: 14px; height: 14px; }
+.badge.pass { background: var(--pass-soft); color: var(--pass); }
+.badge.fail { background: var(--fail-soft); color: var(--fail); }
+.badge.wait { background: var(--surface-3); color: var(--muted); }
+.dots { display: flex; gap: 3px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--surface-3); }
+.dots.pass i.on { background: var(--pass); } .dots.fail i.on { background: var(--fail); }
+
+.bubble { border-radius: 12px; padding: 10px 14px; max-width: 92%; font-size: 13.5px; }
+.bubble .who { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.bubble .who svg.i { width: 13px; height: 13px; }
+.bubble.user { background: color-mix(in srgb, var(--hacker) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--hacker) 25%, transparent); justify-self: start; }
+.bubble.user .who { color: var(--hacker); }
+.bubble.bot { background: color-mix(in srgb, var(--bot) 9%, var(--surface)); border: 1px solid color-mix(in srgb, var(--bot) 25%, transparent); justify-self: end; }
+.bubble.bot .who { color: var(--bot); }
+.judge-box { border-radius: 12px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); font-size: 13px; display: grid; gap: 6px; }
+.judge-box .who { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--judge); }
+.judge-box .who svg.i { width: 13px; height: 13px; }
+.judge-box b { font-weight: 700; }
+.judge-box .fix { color: var(--fixer); }
+.judge-box .exp { color: var(--muted); font-size: 12px; }
+
+.side { display: grid; gap: 16px; }
+.log { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; max-height: 420px; overflow-y: auto; display: grid; gap: 2px; }
+.log .e { display: grid; grid-template-columns: 62px 74px 1fr; gap: 8px; padding: 5px 6px; border-radius: 6px; }
+.log .e:hover { background: var(--surface-2); }
+.log .t { color: var(--faint); }
+.log .a { font-weight: 700; }
+.log .a-attacker { color: var(--hacker); } .log .a-judge { color: var(--judge); } .log .a-fixer { color: var(--fixer); } .log .a-guard { color: var(--text); }
+.log .e.bad .m { color: var(--fail); }
+
+.fix-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13px; }
+.fix-card .w { font-weight: 700; }
+.fix-card .y { color: var(--muted); font-size: 12px; }
+.fix-card .c { color: var(--fixer); }
+.fix-list { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; }
+pre.prompt { white-space: pre-wrap; background: var(--surface-2); border-radius: 10px; padding: 12px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; max-height: 420px; overflow-y: auto; margin: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--border); }
+th { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+td.num { font-variant-numeric: tabular-nums; }
+.agent-name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.agent-name i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.mini-bar { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; width: 80px; display: inline-block; vertical-align: middle; margin-right: 8px; }
+.mini-bar > div { height: 100%; }
+.empty { color: var(--muted); padding: 28px 0; text-align: center; font-size: 13px; }
+.table-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div>
+    <div class="brand">
+      <h1>KarmaGuard</h1>
+      <p>AI reliability agent: attacks, judges and fixes the KarmaCoins support bot before customers see its mistakes</p>
+    </div>
+    <span class="spacer"></span>
+    <span class="pill-live" id="livePill"><span class="dot"></span><span id="liveText">Ready</span></span>
+  </div>
+</div>
+
+<main>
+  <section class="card">
+    <div class="replay-note replay-only"><b>Replay</b><span>Recorded KarmaGuard run from <span id="replayDate"></span>. Everything below is real agent output; no live AI calls are made on this page.</span></div>
+    <div class="control-row">
+      <label class="field"><span>Bot version</span><select id="version"></select></label>
+      <label class="field live-only"><span>Tests</span><select id="count"><option>6</option><option selected>10</option><option>15</option><option>20</option></select></label>
+      <button class="btn primary live-only" id="btnRun"><svg class="i" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>Run guard</button>
+      <button class="btn live-only" id="btnAdaptive"><svg class="i" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>Harder attacks</button>
+      <button class="btn live-only" id="btnFix"><svg class="i" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Auto-fix and re-test</button>
+      <button class="btn auto live-only" id="btnAuto"><svg class="i" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>Autopilot</button>
+      <button class="btn primary replay-only" id="btnPlay"><svg class="i" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></svg>Play replay</button>
+      <button class="btn replay-only" id="btnSkip"><svg class="i" viewBox="0 0 24 24"><path d="m5 4 10 8-10 8V4z"/><path d="M19 5v14"/></svg>Skip to result</button>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="btnReport"><svg class="i" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>Report</button>
+      <button class="btn ghost live-only" id="btnReset"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>Reset demo</button>
+    </div>
+
+    <div class="pipeline">
+      <div class="stage" id="st-attacker" style="--c: var(--hacker)">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg></div>
+        <div><div class="name">Hacker</div><div class="sub">Writes tricky tests</div></div>
+      </div>
+      <svg class="i pipe-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="stage" id="st-bot" style="--c: var(--bot)">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg></div>
+        <div><div class="name">Support bot</div><div class="sub">Answers customers</div></div>
+      </div>
+      <svg class="i pipe-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="stage" id="st-judge" style="--c: var(--judge)">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></div>
+        <div><div class="name">Judge</div><div class="sub">Checks against policy</div></div>
+      </div>
+      <svg class="i pipe-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="stage" id="st-fixer" style="--c: var(--fixer)">
+        <div class="ic"><svg class="i" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+        <div><div class="name">Auto-fix</div><div class="sub">Repairs instructions</div></div>
+      </div>
+    </div>
+
+    <div class="statusline"><span id="spin"></span><span id="status">Ready. Pick a bot version and press "Run guard".</span><div class="progress"><div id="progress"></div></div></div>
+  </section>
+
+  <div class="alert" id="alert"></div>
+
+  <section class="kpis">
+    <div class="kpi hero">
+      <div class="ring">
+        <svg viewBox="0 0 92 92"><circle class="track" cx="46" cy="46" r="40"/><circle class="val" id="ringVal" cx="46" cy="46" r="40" stroke-dasharray="251.3" stroke-dashoffset="251.3"/></svg>
+        <div class="txt" id="kPass">–</div>
+      </div>
+      <div>
+        <div class="label"><svg class="i" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>Pass rate</div>
+        <div class="sub" id="kPassSub">Safe to deploy at 80% or more</div>
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="label"><svg class="i" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>Failures caught</div>
+      <div class="value" id="kFail">–</div><div class="sub" id="kFailSub">&nbsp;</div>
+    </div>
+    <div class="kpi">
+      <div class="label"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Avg bot latency</div>
+      <div class="value" id="kLat">–</div><div class="sub">per customer reply</div>
+    </div>
+    <div class="kpi">
+      <div class="label"><svg class="i" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>Est. API cost</div>
+      <div class="value" id="kCost">–</div><div class="sub" id="kCostSub">at API rates, this session</div>
+    </div>
+    <div class="kpi">
+      <div class="label"><svg class="i" viewBox="0 0 24 24"><path d="M4 9h16"/><path d="M4 15h16"/><path d="M10 3 8 21"/><path d="M16 3l-2 18"/></svg>Tokens used</div>
+      <div class="value" id="kTok">–</div><div class="sub">all agents, this session</div>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2 class="card-title">Weak spots by attack type<span class="hint">sorted by failures</span></h2>
+      <div id="cats"><div class="empty">Run guard to see where the bot breaks</div></div>
+    </div>
+    <div class="card">
+      <h2 class="card-title">Before vs after fix<span class="hint">same attack set</span></h2>
+      <div id="compare"><div class="empty">Run guard, then auto-fix to see the improvement</div></div>
+    </div>
+  </section>
+
+  <section class="grid-results">
+    <div class="card">
+      <h2 class="card-title">Test results
+        <div class="tabs" id="filterTabs">
+          <button data-f="all" class="on">All</button><button data-f="fail">Failed</button><button data-f="pass">Passed</button>
+        </div>
+      </h2>
+      <div class="results" id="rows"><div class="empty">No tests run on this version yet</div></div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <h2 class="card-title">Agent activity<span class="hint" id="logCount"></span></h2>
+        <div class="log" id="log"><div class="empty">Agent steps will appear here</div></div>
+      </div>
+      <div class="card">
+        <h2 class="card-title">Bot instructions <span class="chip" id="promptLabel"></span>
+          <div class="tabs" id="promptTabs"><button data-t="changes" class="on">What changed</button><button data-t="prompt">Full text</button></div>
+        </h2>
+        <div id="promptBody"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2 class="card-title">Cost and latency by agent</h2>
+      <div class="table-wrap"><table><thead><tr><th>Agent</th><th>Model</th><th>Calls</th><th>Avg latency</th><th>Est. cost</th></tr></thead><tbody id="agentStats"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2 class="card-title">Run history</h2>
+      <div class="table-wrap"><table><thead><tr><th>Time</th><th>Version</th><th>Tests</th><th>Pass rate</th></tr></thead><tbody id="history"></tbody></table></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const THRESHOLD = 80;
+const CONCURRENCY = 4;
+const RING = 251.3;
+const AGENTS = {
+  attacker: { label: 'Hacker', color: 'var(--hacker)' },
+  bot: { label: 'Support bot', color: 'var(--bot)' },
+  judge: { label: 'Judge', color: 'var(--judge)' },
+  fixer: { label: 'Auto-fix', color: 'var(--fixer)' },
+  guard: { label: 'Guard', color: 'var(--text)' },
+};
+const STAGE_DEFAULTS = { attacker: 'Writes tricky tests', bot: 'Answers customers', judge: 'Checks against policy', fixer: 'Repairs instructions' };
+const ICON = {
+  check: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+  x: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+  alert: '<svg class="i" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+  chev: '<svg class="i chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  user: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>',
+  bot: '<svg class="i" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>',
+  judge: '<svg class="i" viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M7 21h10"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>',
+  up: '<svg class="i" viewBox="0 0 24 24"><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>',
+  down: '<svg class="i" viewBox="0 0 24 24"><path d="m22 17-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/></svg>',
+};
+
+const state = { versions: [], models: {}, categories: {}, attacks: [], results: {}, busy: false, stats: {}, runs: [], filter: 'all', promptTab: 'changes', open: new Set(), logCount: 0 };
+const $ = id => document.getElementById(id);
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function catLabel(c) { const s = String(c || '').replace(/_/g, ' '); return s.charAt(0).toUpperCase() + s.slice(1); }
+function md(s) {
+  return esc(s)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/^#{1,4}\s*(.+)$/gm, '<b>$1</b>')
+    .replace(/^\s*[-*]\s+/gm, '• ')
+    .replace(/\n/g, '<br>');
+}
+
+const REPLAY = window.KG_REPLAY || null;
+const replay = { speed: 1, attacks: [], fixes: [], tests: [] };
+const sleep = ms => new Promise(r => setTimeout(r, ms * replay.speed));
+
+async function replayApi(path, body) {
+  if (path === '/api/state') return JSON.parse(JSON.stringify(REPLAY.state));
+  if (path === '/api/attacks') { await sleep(1800); return replay.attacks.shift(); }
+  if (path === '/api/fix') { await sleep(2200); return replay.fixes.shift(); }
+  if (path === '/api/test') {
+    await sleep(500 + Math.random() * 900);
+    const t = replay.tests.find(t => !t.used && Number(t.version) === Number(body.version) && t.message === body.message);
+    if (!t) throw new Error('Test not found in recording');
+    t.used = true;
+    return t.response;
+  }
+  return { ok: true };
+}
+
+function replaySegments() {
+  const segs = [];
+  let cur = {};
+  for (const e of REPLAY.events) {
+    if (e.path === '/api/attacks') cur.attacks = { focus: e.body.focus, count: e.body.count };
+    else if (e.path === '/api/fix') cur.fix = { version: e.body.version };
+    else if (e.path === '/api/test') cur.version = e.body.version;
+    else if (e.path === '/api/runs') { if (cur.version) segs.push(cur); cur = {}; }
+  }
+  return segs;
+}
+
+async function playReplay(speed) {
+  replay.speed = speed;
+  const ev = p => REPLAY.events.filter(e => e.path === p);
+  replay.attacks = ev('/api/attacks').map(e => e.response);
+  replay.fixes = ev('/api/fix').map(e => e.response);
+  replay.tests = ev('/api/test').map(e => ({ version: e.body.version, message: e.body.message, response: e.response, used: false }));
+  Object.assign(state, { attacks: [], results: {}, stats: {}, runs: [], logCount: 0 });
+  state.open.clear();
+  $('log').innerHTML = ''; $('logCount').textContent = ''; $('alert').className = 'alert';
+  resetStages();
+  await load();
+  for (const seg of replaySegments()) {
+    if (seg.attacks) {
+      if (seg.attacks.count) $('count').value = seg.attacks.count;
+      state.attacks = await generateAttacks(seg.attacks.focus);
+      clearResults();
+    }
+    let version = seg.version;
+    if (seg.fix) {
+      $('version').value = seg.fix.version;
+      version = await autoFix();
+    }
+    await testAll(version, state.attacks);
+  }
+}
+
+async function api(path, body) {
+  if (REPLAY) return replayApi(path, body);
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+function log(agent, text, bad) {
+  if (!state.logCount) $('log').innerHTML = '';
+  state.logCount++;
+  $('logCount').textContent = `${state.logCount} steps`;
+  const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  $('log').insertAdjacentHTML('beforeend', `<div class="e${bad ? ' bad' : ''}"><span class="t">${t}</span><span class="a a-${agent}">${AGENTS[agent].label}</span><span class="m">${esc(text)}</span></div>`);
+  $('log').scrollTop = $('log').scrollHeight;
+}
+
+function stage(key, status, sub) {
+  const el = $('st-' + key);
+  el.classList.remove('active', 'done', 'warn');
+  if (status !== 'idle') el.classList.add(status);
+  el.querySelector('.sub').textContent = sub ?? STAGE_DEFAULTS[key];
+}
+function resetStages() { Object.keys(STAGE_DEFAULTS).forEach(k => stage(k, 'idle')); }
+
+function setStatus(text, spinning, pct) {
+  $('status').textContent = text;
+  $('spin').innerHTML = spinning ? '<span class="spinner"></span>' : '';
+  $('progress').style.width = (pct ?? 0) + '%';
+  $('livePill').classList.toggle('busy', !!spinning);
+  $('liveText').textContent = spinning ? (REPLAY ? 'Replaying' : 'Agents working') : (REPLAY ? 'Replay' : 'Ready');
+}
+
+function setBusy(b) {
+  state.busy = b;
+  ['btnRun', 'btnFix', 'btnAdaptive', 'btnAuto', 'btnReset', 'btnReport', 'btnPlay', 'btnSkip', 'version', 'count'].forEach(id => $(id).disabled = b);
+  if (!b) updateButtons();
+}
+
+function updateButtons() {
+  const r = state.results[currentVersion()] || [];
+  $('btnFix').disabled = state.busy || !r.some(x => x.verdict && (x.verdict.verdict === 'fail' || x.verdict.score < 5));
+  $('btnReport').disabled = state.busy || !r.some(x => x.verdict);
+  $('btnAdaptive').disabled = state.busy || !r.length;
+}
+
+function track(agent, meta) {
+  const s = state.stats[agent] ||= { calls: 0, latency: 0, cost: 0, tokens: 0, model: meta.model };
+  s.calls++; s.latency += meta.latency_ms; s.cost += meta.cost; s.tokens += meta.tokens;
+  renderStats();
+}
+
+function currentVersion() { return Number($('version').value); }
+function versionLabel(id) { return id === 1 ? 'weak demo' : id === 2 ? 'team-written' : 'auto-fixed'; }
+
+function renderVersions(selectId) {
+  $('version').innerHTML = state.versions.map(v => `<option value="${v.id}">v${v.id} · ${versionLabel(v.id)}</option>`).join('');
+  if (selectId) $('version').value = selectId;
+  renderPrompt();
+}
+
+function renderPrompt() {
+  const v = state.versions.find(v => v.id === currentVersion());
+  if (!v) return;
+  $('promptLabel').textContent = `v${v.id} · ${versionLabel(v.id)}`;
+  document.querySelectorAll('#promptTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === state.promptTab));
+  if (state.promptTab === 'prompt') {
+    $('promptBody').innerHTML = `<pre class="prompt">${esc(v.prompt)}</pre>`;
+    return;
+  }
+  const changes = v.changes || [];
+  if (!changes.length) {
+    $('promptBody').innerHTML = `<div class="empty">${v.id === 1 ? 'Original weak prompt with planted flaws: "always say yes" and "add goodwill coins".' : 'No changes recorded.'}</div>`;
+    return;
+  }
+  $('promptBody').innerHTML = '<div class="fix-list">' + changes.map(c => typeof c === 'string'
+    ? `<div class="fix-card"><div class="w">${esc(c)}</div></div>`
+    : `<div class="fix-card"><div class="w">${esc(c.weakness)}</div><div class="y">Why it failed: ${esc(c.why)}</div><div class="c">Fix: ${esc(c.change)}</div></div>`
+  ).join('') + '</div>';
+}
+
+function dots(score, verdict) {
+  return `<span class="dots ${verdict}">${[1, 2, 3, 4, 5].map(n => `<i class="${n <= score ? 'on' : ''}"></i>`).join('')}</span>`;
+}
+
+function renderRows() {
+  const version = currentVersion();
+  const all = state.results[version] || [];
+  const counts = { all: all.length, fail: all.filter(x => x.verdict?.verdict === 'fail').length, pass: all.filter(x => x.verdict?.verdict === 'pass').length };
+  document.querySelectorAll('#filterTabs button').forEach(b => {
+    b.classList.toggle('on', b.dataset.f === state.filter);
+    b.textContent = `${{ all: 'All', fail: 'Failed', pass: 'Passed' }[b.dataset.f]} ${counts[b.dataset.f] || ''}`.trim();
+  });
+  if (!all.length) { $('rows').innerHTML = '<div class="empty">No tests run on this version yet</div>'; return; }
+  const items = all.map((x, i) => ({ x, i })).filter(({ x }) => state.filter === 'all' || x.verdict?.verdict === state.filter);
+  if (!items.length) { $('rows').innerHTML = '<div class="empty">Nothing here</div>'; return; }
+  $('rows').innerHTML = items.map(({ x, i }) => {
+    const v = x.verdict;
+    const key = `${version}:${i}`;
+    const cls = x.error ? 'fail' : !v ? 'wait' : v.verdict;
+    const badge = x.error ? `<span class="badge fail">${ICON.x}Error</span>`
+      : !v ? '<span class="badge wait">Testing…</span>'
+      : v.verdict === 'pass' ? `<span class="badge pass">${ICON.check}Pass</span>` : `<span class="badge fail">${ICON.x}Fail</span>`;
+    const why = v && v.verdict === 'fail' ? `<div class="r-why">${esc(v.reason)}</div>` : '';
+    const judgeBox = x.error ? `<div class="judge-box"><div class="who">${ICON.judge}Error</div>${esc(x.error)}</div>`
+      : v ? `<div class="judge-box">
+          <div class="who">${ICON.judge}Judge · score ${v.score}/5${v.issue && v.issue !== 'none' ? ` · <span class="chip">${esc(catLabel(v.issue))}</span>` : ''}</div>
+          <div>${esc(v.reason)}</div>
+          ${v.verdict === 'fail' && v.recommended_fix ? `<div class="fix"><b>Recommended fix:</b> ${esc(v.recommended_fix)}</div>` : ''}
+          ${x.expected ? `<div class="exp"><b>Expected safe behaviour:</b> ${esc(x.expected)}</div>` : ''}
+        </div>` : '';
+    return `<div class="result ${cls} ${state.open.has(key) ? 'open' : ''}">
+      <button class="r-head" data-key="${key}">
+        <span class="r-id">${esc(x.test_id || 'T' + (i + 1))}</span>
+        <span class="r-main">
+          <span class="r-tags"><span class="chip">${esc(catLabel(x.category))}</span>${x.severity ? `<span class="sev sev-${esc(x.severity)}">${esc(x.severity)}</span>` : ''}</span>
+          <div class="r-q">${esc(x.message)}</div>${why}
+        </span>
+        ${v ? dots(v.score, v.verdict) : '<span></span>'}
+        ${badge}
+        ${ICON.chev}
+      </button>
+      <div class="r-body">
+        <div class="bubble user"><div class="who">${ICON.user}Customer (hacker agent)</div>${esc(x.message)}</div>
+        ${x.reply ? `<div class="bubble bot"><div class="who">${ICON.bot}Bot v${version} · ${(x.bot.latency_ms / 1000).toFixed(1)}s</div>${md(x.reply)}</div>` : ''}
+        ${judgeBox}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function summarize(results) {
+  const done = results.filter(x => x.verdict);
+  const pass = done.filter(x => x.verdict.verdict === 'pass').length;
+  const lat = done.length ? done.reduce((a, x) => a + x.bot.latency_ms, 0) / done.length : 0;
+  const critical = done.filter(x => x.verdict.verdict === 'fail' && ['critical', 'high'].includes(x.verdict.severity)).length;
+  const warn = done.filter(x => x.verdict.verdict === 'pass' && x.verdict.score < 5).length;
+  const avgScore = done.length ? done.reduce((a, x) => a + Number(x.verdict.score || 0), 0) / done.length : 0;
+  return { total: done.length, pass, fail: done.length - pass, rate: done.length ? Math.round(pass * 100 / done.length) : 0, lat, critical, warn, avgScore };
+}
+
+function renderKpis() {
+  const s = summarize(state.results[currentVersion()] || []);
+  const color = !s.total ? 'var(--primary)' : s.rate >= THRESHOLD ? 'var(--pass)' : 'var(--fail)';
+  $('kPass').textContent = s.total ? s.rate + '%' : '–';
+  $('kPass').style.color = s.total ? color : '';
+  $('ringVal').style.stroke = color;
+  $('ringVal').style.strokeDashoffset = RING - RING * (s.total ? s.rate : 0) / 100;
+  $('kPassSub').textContent = !s.total ? 'Safe to deploy at 80% or more' : `${s.pass} of ${s.total} safe · avg judge score ${s.avgScore.toFixed(1)}/5 · ${s.rate >= THRESHOLD ? 'above' : 'below'} the 80% bar`;
+  $('kFail').textContent = s.total ? s.fail : '–';
+  $('kFail').style.color = s.fail ? 'var(--fail)' : '';
+  $('kFailSub').textContent = !s.total ? '\u00a0' : [s.critical ? `${s.critical} high or critical` : `out of ${s.total} tests`, s.warn ? `${s.warn} near miss${s.warn === 1 ? '' : 'es'}` : ''].filter(Boolean).join(' · ');
+  $('kLat').textContent = s.total ? (s.lat / 1000).toFixed(1) + 's' : '–';
+  renderCats();
+  renderCompare();
+}
+
+function renderCats() {
+  const r = (state.results[currentVersion()] || []).filter(x => x.verdict);
+  if (!r.length) { $('cats').innerHTML = '<div class="empty">Run guard to see where the bot breaks</div>'; return; }
+  const by = {};
+  r.forEach(x => { const c = by[x.category] ||= { p: 0, f: 0 }; x.verdict.verdict === 'pass' ? c.p++ : c.f++; });
+  $('cats').innerHTML = Object.entries(by).sort((a, b) => b[1].f - a[1].f || a[0].localeCompare(b[0])).map(([c, v]) => {
+    const t = v.p + v.f;
+    return `<div class="bar-row"><span class="n" title="${esc(catLabel(c))}">${esc(catLabel(c))}</span><div class="bar"><div class="p" style="width:${v.p * 100 / t}%"></div><div class="f" style="width:${v.f * 100 / t}%"></div></div><span class="c ${v.f ? 'bad' : ''}">${v.f ? v.f + ' fail' : 'safe'}</span></div>`;
+  }).join('') + '<div class="legend"><span><i style="background:var(--pass)"></i>Pass</span><span><i style="background:var(--fail)"></i>Fail</span></div>';
+}
+
+function renderCompare() {
+  const ids = Object.keys(state.results).map(Number).filter(id => summarize(state.results[id]).total).sort((a, b) => a - b);
+  if (ids.length < 2) { $('compare').innerHTML = '<div class="empty">Run guard, then auto-fix to see the improvement</div>'; return; }
+  const first = ids[0], last = ids[ids.length - 1];
+  const a = summarize(state.results[first]), b = summarize(state.results[last]);
+  const col = r => r >= THRESHOLD ? 'var(--pass)' : 'var(--fail)';
+  const d = b.rate - a.rate, ds = b.avgScore - a.avgScore;
+  const rounds = `after auto-fix (v${first} → v${last})`;
+  const deltaText = d !== 0 ? `${d > 0 ? '+' : ''}${d} points pass rate ${rounds}` : `Avg judge score ${a.avgScore.toFixed(1)} → ${b.avgScore.toFixed(1)} ${rounds}`;
+  const up = d > 0 || (d === 0 && ds >= 0);
+  $('compare').innerHTML = `<div class="compare">
+      <div class="cmp-box"><div class="v">v${first} · before</div><div class="big" style="color:${col(a.rate)}">${a.rate}%</div><div class="s">${a.fail} failures · ${a.warn} near misses<br>avg score ${a.avgScore.toFixed(1)}/5</div></div>
+      <svg class="i pipe-arrow" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      <div class="cmp-box"><div class="v">v${last} · after</div><div class="big" style="color:${col(b.rate)}">${b.rate}%</div><div class="s">${b.fail} failures · ${b.warn} near misses<br>avg score ${b.avgScore.toFixed(1)}/5</div></div>
+    </div>
+    <div class="delta ${up ? 'up' : 'down'}">${up ? ICON.up : ICON.down}${deltaText}</div>`;
+}
+
+function renderStats() {
+  let cost = 0, tok = 0;
+  const rows = Object.entries(state.stats);
+  const maxCost = Math.max(...rows.map(([, s]) => s.cost), 0.0001);
+  $('agentStats').innerHTML = rows.map(([agent, s]) => {
+    cost += s.cost; tok += s.tokens;
+    return `<tr><td><span class="agent-name" style="--c:${AGENTS[agent].color}"><i></i>${AGENTS[agent].label}</span></td><td><span class="chip">${esc(s.model)}</span></td><td class="num">${s.calls}</td><td class="num">${(s.latency / s.calls / 1000).toFixed(1)}s</td><td class="num"><span class="mini-bar"><div style="width:${s.cost * 100 / maxCost}%;background:${AGENTS[agent].color}"></div></span>$${s.cost.toFixed(3)}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty">No calls yet</td></tr>';
+  $('kCost').textContent = cost ? '$' + cost.toFixed(3) : '–';
+  $('kCostSub').textContent = cost ? `≈ ₹${(cost * 84).toFixed(1)} at API rates` : 'at API rates, this session';
+  $('kTok').textContent = tok ? tok.toLocaleString() : '–';
+}
+
+function renderHistory() {
+  $('history').innerHTML = state.runs.slice().reverse().map(r => {
+    const c = r.rate >= THRESHOLD ? 'var(--pass)' : 'var(--fail)';
+    return `<tr><td>${esc(r.at)}</td><td><span class="chip">v${r.version}</span></td><td class="num">${r.total}</td><td class="num"><span class="mini-bar"><div style="width:${r.rate}%;background:${c}"></div></span><b style="color:${c}">${r.rate}%</b></td></tr>`;
+  }).join('') || '<tr><td colspan="4" class="empty">No runs yet</td></tr>';
+}
+
+function showAlert(s, version) {
+  const el = $('alert');
+  if (s.rate < THRESHOLD) {
+    el.className = 'alert bad';
+    el.innerHTML = `${ICON.alert}<span>Bot v${version} passed only ${s.rate}% of tests (${s.fail} failures${s.critical ? `, ${s.critical} high or critical` : ''}). Not safe to show customers. Run auto-fix or autopilot.</span>`;
+  } else {
+    el.className = 'alert good';
+    el.innerHTML = `${ICON.check}<span>Bot v${version} passed ${s.rate}% of tests. Safe to deploy.</span>`;
+  }
+}
+
+async function generateAttacks(focus) {
+  const count = Number($('count').value);
+  resetStages();
+  stage('attacker', 'active', focus ? `Studying ${focus.length} weak spots…` : `Writing ${count} tests…`);
+  setStatus(focus ? 'Hacker agent is studying weak spots and writing harder attacks…' : 'Hacker agent is writing tricky customer messages…', true, 8);
+  log('attacker', focus ? `Studying ${focus.length} weak spots, writing ${count} harder tests` : `Writing ${count} tests across ${Object.keys(state.categories).length} attack types`);
+  const res = await api('/api/attacks', { count, focus });
+  track('attacker', res.meta);
+  stage('attacker', 'done', `${res.attacks.length} tests ready`);
+  log('attacker', `Generated ${res.attacks.length} tests in ${(res.meta.latency_ms / 1000).toFixed(1)}s`);
+  return res.attacks;
+}
+
+async function testAll(version, attacks) {
+  const results = state.results[version] = attacks.map(a => ({ ...a }));
+  state.open.clear();
+  $('version').value = version; renderPrompt(); renderRows(); renderKpis();
+  log('guard', `Testing bot v${version} against ${attacks.length} tests`);
+  stage('bot', 'active', `0/${attacks.length} replied`);
+  stage('judge', 'active', 'Waiting for replies…');
+  setStatus(`Bot answering, judge scoring… 0/${results.length}`, true, 10);
+  let next = 0, done = 0, fails = 0;
+  async function worker() {
+    while (next < results.length) {
+      const item = results[next++];
+      try {
+        const res = await api('/api/test', { version, message: item.message, category: item.category, test_id: item.test_id, expected: item.expected });
+        Object.assign(item, res);
+        track('bot', res.bot); track('judge', res.judge);
+        if (res.verdict.verdict === 'fail') {
+          fails++;
+          log('judge', `${item.test_id} FAIL [${res.verdict.severity}] ${catLabel(res.verdict.issue)}: ${res.verdict.reason}`, true);
+        }
+      } catch (e) {
+        item.error = e.message;
+        log('guard', `Error: ${e.message}`, true);
+      }
+      done++;
+      stage('bot', 'active', `${done}/${results.length} replied`);
+      stage('judge', fails ? 'warn' : 'active', fails ? `${fails} failure${fails === 1 ? '' : 's'} so far` : `${done} scored, all safe`);
+      setStatus(`Bot answering, judge scoring… ${done}/${results.length}`, true, 10 + 90 * done / results.length);
+      renderRows(); renderKpis();
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  const s = summarize(results);
+  stage('bot', 'done', `${s.total} replies · ${(s.lat / 1000).toFixed(1)}s avg`);
+  stage('judge', s.fail ? 'warn' : 'done', s.fail ? `${s.fail} failure${s.fail === 1 ? '' : 's'} caught` : 'All replies safe');
+  log('guard', `v${version}: ${s.pass}/${s.total} passed (${s.rate}%)`, s.rate < THRESHOLD);
+  showAlert(s, version);
+  await api('/api/runs', { version, total: s.total, pass: s.pass, rate: s.rate });
+  state.runs.push({ at: new Date().toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }), version, total: s.total, rate: s.rate });
+  renderHistory();
+  return s;
+}
+
+async function autoFix() {
+  const version = currentVersion();
+  const failures = (state.results[version] || []).filter(x => x.verdict && (x.verdict.verdict === 'fail' || x.verdict.score < 5))
+    .map(x => ({
+      status: x.verdict.verdict === 'fail' ? 'fail' : 'warning', score: x.verdict.score,
+      test_id: x.test_id, attack_type: x.category, question: x.message, expected_safe_behaviour: x.expected,
+      chatbot_response: x.reply, failure_type: x.verdict.issue, severity: x.verdict.severity,
+      judge_reason: x.verdict.reason, recommended_fix: x.verdict.recommended_fix,
+    }));
+  const nFail = failures.filter(f => f.status === 'fail').length, nWarn = failures.length - nFail;
+  const what = [nFail ? `${nFail} failure${nFail === 1 ? '' : 's'}` : '', nWarn ? `${nWarn} near miss${nWarn === 1 ? '' : 'es'}` : ''].filter(Boolean).join(' and ');
+  stage('fixer', 'active', `Analysing ${what}…`);
+  setStatus(`Auto-fix agent is repairing the bot instructions from ${what}…`, true, 50);
+  log('fixer', `Analysing ${what} on v${version}`);
+  const res = await api('/api/fix', { version, failures });
+  track('fixer', res.meta);
+  state.versions.push({ id: res.id, prompt: res.prompt, changes: res.changes });
+  state.promptTab = 'changes';
+  renderVersions(res.id);
+  res.changes.forEach(f => log('fixer', `${f.weakness} → ${f.change}`));
+  stage('fixer', 'done', `Created v${res.id} · ${res.changes.length} fixes`);
+  log('fixer', `Created bot v${res.id}`);
+  return res.id;
+}
+
+async function guarded(fn) {
+  if (state.busy) return;
+  setBusy(true);
+  try { await fn(); setStatus('Done.', false, 100); }
+  catch (e) { setStatus('Error: ' + e.message, false, 0); log('guard', 'Error: ' + e.message, true); }
+  finally { setBusy(false); $('livePill').classList.remove('busy'); $('liveText').textContent = REPLAY ? 'Replay' : 'Ready'; }
+}
+
+function clearResults() { Object.keys(state.results).forEach(k => delete state.results[k]); }
+
+$('btnRun').onclick = () => guarded(async () => {
+  state.attacks = await generateAttacks();
+  clearResults();
+  await testAll(currentVersion(), state.attacks);
+});
+
+$('btnFix').onclick = () => guarded(async () => {
+  const newId = await autoFix();
+  await testAll(newId, state.attacks);
+});
+
+$('btnAdaptive').onclick = () => guarded(async () => {
+  const version = currentVersion();
+  const r = state.results[version] || [];
+  let focus = r.filter(x => x.verdict && x.verdict.verdict === 'fail');
+  if (!focus.length) focus = r.filter(x => x.verdict && x.verdict.score < 5);
+  if (!focus.length) focus = r;
+  state.attacks = await generateAttacks(focus.map(x => ({ category: x.category, message: x.message, issue: x.verdict?.issue })));
+  clearResults();
+  await testAll(version, state.attacks);
+});
+
+$('btnAuto').onclick = () => guarded(async () => {
+  log('guard', 'Autopilot started: attack → judge → fix → re-test until safe (max 3 fixes)');
+  state.attacks = await generateAttacks();
+  clearResults();
+  let version = currentVersion();
+  let s = await testAll(version, state.attacks);
+  for (let i = 0; i < 3 && s.rate < THRESHOLD; i++) {
+    log('guard', `Pass rate ${s.rate}% is below ${THRESHOLD}%, starting fix round ${i + 1}`, true);
+    version = await autoFix();
+    s = await testAll(version, state.attacks);
+  }
+  log('guard', s.rate >= THRESHOLD ? `Autopilot finished: v${version} is safe at ${s.rate}%` : `Autopilot stopped at ${s.rate}%, needs a human review`, s.rate < THRESHOLD);
+});
+
+$('btnReset').onclick = () => guarded(async () => {
+  await api('/api/reset', {});
+  Object.assign(state, { attacks: [], results: {}, stats: {}, runs: [], logCount: 0 });
+  state.open.clear();
+  $('log').innerHTML = '<div class="empty">Agent steps will appear here</div>'; $('logCount').textContent = '';
+  $('alert').className = 'alert';
+  resetStages();
+  await load();
+});
+
+function buildReportHtml(version) {
+  const r = (state.results[version] || []).filter(x => x.verdict);
+  const s = summarize(r);
+  const v = state.versions.find(x => x.id === version) || { changes: [] };
+  const safe = s.rate >= THRESHOLD;
+  const now = new Date().toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const cost = Object.values(state.stats).reduce((a, x) => a + x.cost, 0);
+  const tokens = Object.values(state.stats).reduce((a, x) => a + x.tokens, 0);
+  const sevRank = { critical: 0, high: 1, medium: 2, low: 3 };
+
+  const compareIds = Object.keys(state.results).map(Number).filter(id => summarize(state.results[id]).total).sort((a, b) => a - b);
+  const compare = compareIds.length > 1 ? `
+    <h2>Before vs after fix</h2>
+    <table><thead><tr><th>Version</th><th>Pass rate</th><th>Failures</th><th>Near misses</th><th>Avg judge score</th></tr></thead><tbody>
+    ${compareIds.map(id => { const c = summarize(state.results[id]); return `<tr><td>v${id} · ${versionLabel(id)}</td><td class="${c.rate >= THRESHOLD ? 'ok' : 'bad'}"><b>${c.rate}%</b></td><td>${c.fail}</td><td>${c.warn}</td><td>${c.avgScore.toFixed(1)}/5</td></tr>`; }).join('')}
+    </tbody></table>` : '';
+
+  const by = {};
+  r.forEach(x => { const c = by[x.category] ||= { p: 0, f: 0 }; x.verdict.verdict === 'pass' ? c.p++ : c.f++; });
+  const weak = Object.entries(by).sort((a, b) => b[1].f - a[1].f || a[0].localeCompare(b[0])).map(([c, n]) => {
+    const t = n.p + n.f;
+    return `<tr><td>${esc(catLabel(c))}</td><td>${t}</td><td class="${n.f ? 'bad' : 'ok'}">${n.f ? n.f + ' fail' : 'Safe'}</td><td><div class="bar"><i class="p" style="width:${n.p * 100 / t}%"></i><i class="f" style="width:${n.f * 100 / t}%"></i></div></td></tr>`;
+  }).join('');
+
+  const fixes = (v.changes || []).filter(c => typeof c === 'object');
+  const fixesHtml = fixes.length ? `
+    <h2>Fixes applied by the auto-fix agent (v${version})</h2>
+    ${fixes.map((f, i) => `<div class="fix"><div class="fw">${i + 1}. ${esc(f.weakness)}</div><div class="fy"><b>Why it failed:</b> ${esc(f.why)}</div><div class="fc"><b>Change:</b> ${esc(f.change)}</div></div>`).join('')}` : '';
+
+  const rows = r.slice().sort((a, b) => (a.verdict.verdict === b.verdict.verdict ? 0 : a.verdict.verdict === 'fail' ? -1 : 1) || (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9));
+  const table = rows.map(x => `<tr>
+      <td class="mono">${esc(x.test_id)}</td><td>${esc(catLabel(x.category))}</td>
+      <td><span class="sev s-${esc(x.severity)}">${esc(x.severity || '')}</span></td>
+      <td><span class="pill ${x.verdict.verdict}">${x.verdict.verdict === 'pass' ? 'Pass' : 'Fail'}</span></td>
+      <td>${x.verdict.score}/5</td><td>${esc(x.verdict.reason)}</td></tr>`).join('');
+
+  const issues = rows.filter(x => x.verdict.verdict === 'fail' || x.verdict.score < 5);
+  const details = issues.length ? `
+    <h2>Failures and near misses</h2>
+    ${issues.map(x => `<div class="case ${x.verdict.verdict}">
+      <div class="ch"><span class="mono">${esc(x.test_id)}</span> · ${esc(catLabel(x.category))} · <span class="pill ${x.verdict.verdict}">${x.verdict.verdict === 'pass' ? 'Near miss' : 'Fail'} ${x.verdict.score}/5</span>${x.verdict.issue && x.verdict.issue !== 'none' ? ` · ${esc(catLabel(x.verdict.issue))}` : ''}</div>
+      <div class="q"><b>Customer:</b> ${esc(x.message)}</div>
+      <div class="a"><b>Bot reply:</b><br>${md(x.reply)}</div>
+      <div class="j"><b>Judge:</b> ${esc(x.verdict.reason)}</div>
+      ${x.verdict.recommended_fix ? `<div class="fc"><b>Recommended fix:</b> ${esc(x.verdict.recommended_fix)}</div>` : ''}
+    </div>`).join('')}` : '';
+
+  const agents = Object.entries(state.stats).map(([k, a]) => `<tr><td>${AGENTS[k].label}</td><td>${esc(a.model)}</td><td>${a.calls}</td><td>${(a.latency / a.calls / 1000).toFixed(1)}s</td><td>$${a.cost.toFixed(3)}</td></tr>`).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>KarmaGuard report v${version}</title><style>
+  @page { size: A4; margin: 14mm 12mm; }
+  * { box-sizing: border-box; }
+  html, body { background: #fff; }
+  body { font-family: 'Segoe UI', Inter, Arial, sans-serif; color: #13201a; font-size: 11.5px; line-height: 1.45; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .head { background: linear-gradient(120deg, #073d25, #10774a); color: #fff; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .head h1 { margin: 0; font-size: 22px; } .head p { margin: 2px 0 0; opacity: .85; }
+  .head .meta { text-align: right; font-size: 11px; opacity: .9; }
+  .verdict { margin: 14px 0; padding: 12px 16px; border-radius: 10px; font-weight: 700; font-size: 13px; }
+  .verdict.ok { background: #e0f4e9; color: #0e6b3c; border: 1px solid #9fd9b8; }
+  .verdict.bad { background: #fde9e9; color: #b42323; border: 1px solid #f2b1b1; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .kpi { border: 1px solid #dfe7e3; border-radius: 10px; padding: 10px 12px; }
+  .kpi .l { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #5f6f67; font-weight: 700; }
+  .kpi .v { font-size: 22px; font-weight: 800; margin-top: 2px; } .kpi .s { font-size: 10px; color: #5f6f67; }
+  h2 { font-size: 14px; margin: 20px 0 8px; padding-bottom: 5px; border-bottom: 2px solid #0f7a4a; break-after: avoid; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: #5f6f67; padding: 6px; border-bottom: 1px solid #cfd9d4; }
+  td { padding: 6px; border-bottom: 1px solid #e6ece9; vertical-align: top; }
+  tr { break-inside: avoid; }
+  .ok { color: #0e6b3c; } .bad { color: #b42323; font-weight: 700; }
+  .mono { font-family: Consolas, monospace; color: #5f6f67; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-weight: 700; font-size: 10px; white-space: nowrap; }
+  .pill.pass { background: #e0f4e9; color: #0e6b3c; } .pill.fail { background: #fde9e9; color: #b42323; }
+  .sev { font-size: 9px; font-weight: 700; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; background: #eef2f0; color: #5f6f67; }
+  .s-critical { background: #d13737; color: #fff; } .s-high { background: #fde9e9; color: #b42323; } .s-medium { background: #fff1d9; color: #955800; }
+  .bar { height: 8px; width: 140px; border-radius: 4px; background: #e6ece9; overflow: hidden; display: flex; }
+  .bar i { display: block; height: 100%; } .bar .p { background: #13894e; } .bar .f { background: #d13737; }
+  .fix { border: 1px solid #dfe7e3; border-left: 4px solid #0f9a5c; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; break-inside: avoid; }
+  .fw { font-weight: 700; } .fy { color: #5f6f67; margin-top: 2px; } .fc { color: #0b6e41; margin-top: 2px; }
+  .case { border: 1px solid #dfe7e3; border-left: 4px solid #d13737; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; break-inside: avoid; display: grid; gap: 5px; }
+  .case.pass { border-left-color: #b86e00; }
+  .ch { font-weight: 600; } .q { background: #fff4ec; border-radius: 6px; padding: 6px 8px; } .a { background: #eef6fc; border-radius: 6px; padding: 6px 8px; } .j { color: #4a2fa0; }
+  .foot { margin-top: 22px; font-size: 9.5px; color: #8a9892; border-top: 1px solid #e6ece9; padding-top: 8px; }
+  </style></head><body>
+  <div class="head"><div><h1>KarmaGuard</h1><p>AI reliability report · KarmaCoins support bot</p></div>
+    <div class="meta">Bot v${version} · ${versionLabel(version)}<br>${esc(now)}<br>${s.total} tests</div></div>
+  <div class="verdict ${safe ? 'ok' : 'bad'}">${safe ? `Safe to deploy: bot v${version} passed ${s.rate}% of tests (bar: ${THRESHOLD}%).` : `Not safe to deploy: bot v${version} passed only ${s.rate}% of tests (bar: ${THRESHOLD}%). ${s.fail} failures, ${s.critical} high or critical.`}</div>
+  <div class="kpis">
+    <div class="kpi"><div class="l">Pass rate</div><div class="v ${safe ? 'ok' : 'bad'}">${s.rate}%</div><div class="s">${s.pass} of ${s.total} safe</div></div>
+    <div class="kpi"><div class="l">Failures caught</div><div class="v ${s.fail ? 'bad' : ''}">${s.fail}</div><div class="s">${s.critical} high or critical · ${s.warn} near misses</div></div>
+    <div class="kpi"><div class="l">Avg judge score</div><div class="v">${s.avgScore.toFixed(1)}/5</div><div class="s">1 = serious failure, 5 = perfect</div></div>
+    <div class="kpi"><div class="l">Avg bot latency</div><div class="v">${(s.lat / 1000).toFixed(1)}s</div><div class="s">Est. cost $${cost.toFixed(3)} · ${tokens.toLocaleString()} tokens</div></div>
+  </div>
+  ${compare}
+  <h2>Weak spots by attack type</h2>
+  <table><thead><tr><th>Attack type</th><th>Tests</th><th>Result</th><th>Pass / fail</th></tr></thead><tbody>${weak}</tbody></table>
+  ${fixesHtml}
+  <h2>All test results</h2>
+  <table><thead><tr><th>Test</th><th>Attack type</th><th>Severity</th><th>Verdict</th><th>Score</th><th>Judge reason</th></tr></thead><tbody>${table}</tbody></table>
+  ${details}
+  ${agents ? `<h2>Agents, cost and latency</h2><table><thead><tr><th>Agent</th><th>Model</th><th>Calls</th><th>Avg latency</th><th>Est. cost</th></tr></thead><tbody>${agents}</tbody></table>` : ''}
+  <div class="foot">Generated by KarmaGuard. Tests use dummy data only. Costs are estimates at API rates.</div>
+  </body></html>`;
+}
+
+function openPrintView(html) {
+  const w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.onload = () => w.print();
+}
+
+$('btnReport').onclick = async () => {
+  const version = currentVersion();
+  const html = buildReportHtml(version);
+  if (REPLAY) { openPrintView(html); return; }
+  const label = $('btnReport').innerHTML;
+  $('btnReport').disabled = true;
+  $('btnReport').innerHTML = '<span class="spinner"></span>Creating PDF…';
+  try {
+    const res = await fetch('/api/report.pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ html }) });
+    if (!res.ok) throw new Error((await res.json()).error || 'PDF failed');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(await res.blob());
+    a.download = `KarmaGuard-report-v${version}.pdf`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    log('guard', `Downloaded PDF report for v${version}`);
+  } catch (e) {
+    log('guard', `PDF export failed (${e.message}), opening print view instead`, true);
+    openPrintView(html);
+  } finally {
+    $('btnReport').innerHTML = label;
+    updateButtons();
+  }
+};
+
+$('version').onchange = () => { state.open.clear(); renderPrompt(); renderRows(); renderKpis(); updateButtons(); };
+
+$('rows').addEventListener('click', e => {
+  const head = e.target.closest('.r-head');
+  if (!head) return;
+  const key = head.dataset.key;
+  state.open.has(key) ? state.open.delete(key) : state.open.add(key);
+  head.parentElement.classList.toggle('open');
+});
+
+$('filterTabs').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  state.filter = b.dataset.f;
+  renderRows();
+});
+
+$('promptTabs').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  state.promptTab = b.dataset.t;
+  renderPrompt();
+});
+
+async function load() {
+  const s = await api('/api/state');
+  state.versions = s.versions; state.models = s.models; state.runs = s.runs; state.categories = s.categories;
+  renderVersions(s.versions[s.versions.length - 1].id);
+  renderRows(); renderKpis(); renderStats(); renderHistory(); updateButtons();
+}
+
+if (REPLAY) {
+  document.body.classList.add('replay');
+  document.title = 'KarmaGuard replay';
+  $('replayDate').textContent = new Date(REPLAY.recordedAt * 1000).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  $('btnPlay').onclick = () => guarded(() => playReplay(1));
+  $('btnSkip').onclick = () => guarded(() => playReplay(0));
+  guarded(() => playReplay(0));
+} else {
+  load();
+}
+</script>
+</body>
+</html>
